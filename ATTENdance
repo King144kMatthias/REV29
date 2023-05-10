@@ -1,0 +1,84 @@
+
+python
+import os
+import csv
+from flask import Flask, render_template, request, redirect, url_for
+
+app = Flask(__name__)
+
+class Attendee:
+    def __init__(self, name, last_name, email, phone, age, gender, picture):
+        self.name = name
+        self.last_name = last_name
+        self.email = email
+        self.phone = phone
+        self.age = age
+        self.gender = gender
+        self.picture = picture
+
+    def __str__(self):
+        return f"{self.name} {self.last_name} ({self.age}, {self.gender})"
+
+class Attendance:
+    def __init__(self):
+        self.attendees = []
+
+    def add_attendee(self, attendee):
+        self.attendees.append(attendee)
+
+    def get_attendees(self):
+        return self.attendees
+
+    def save_attendees(self, filename):
+        with open(filename, mode='w', newline='') as file:
+            writer = csv.writer(file)
+            writer.writerow(['Name', 'Last Name', 'Email', 'Phone', 'Age', 'Gender', 'Picture'])
+            for attendee in self.attendees:
+                writer.writerow([attendee.name, attendee.last_name, attendee.email, attendee.phone,
+                                 attendee.age, attendee.gender, attendee.picture])
+
+    def load_attendees(self, filename):
+        with open(filename, mode='r') as file:
+            reader = csv.reader(file)
+            next(reader) # skip header row
+            for row in reader:
+                attendee = Attendee(row[0], row[1], row[2], row[3], row[4], row[5], row[6])
+                self.add_attendee(attendee)
+
+app.config['UPLOAD_FOLDER'] = 'static/images/'
+
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+@app.route('/add_attendee', methods=['GET', 'POST'])
+def add_attendee():
+    if request.method == 'POST':
+        name = request.form['name']
+        last_name = request.form['last_name']
+        email = request.form['email']
+        phone = request.form['phone']
+        age = request.form['age']
+        gender = request.form['gender']
+        picture_file = request.files['picture']
+        picture_path = ''
+        if picture_file:
+            picture_filename = picture_file.filename
+            picture_path = os.path.join(app.config['UPLOAD_FOLDER'], picture_filename)
+            picture_file.save(picture_path)
+        attendee = Attendee(name, last_name, email, phone, age, gender, picture_path)
+        attendance.add_attendee(attendee)
+        attendance.save_attendees("attendees.csv")
+        return redirect(url_for('list_attendees'))
+    else:
+        return render_template('add_attendee.html')
+
+@app.route('/list_attendees')
+def list_attendees():
+    attendees = attendance.get_attendees()
+    return render_template('list_attendees.html', attendees=attendees)
+
+if __name__ == "__main__":
+    attendance = Attendance()
+    attendance.load_attendees("attendees.csv")
+    app.run(debug=True)
